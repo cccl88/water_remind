@@ -78,6 +78,12 @@ python -m venv .venv
 
 > `dist/`、`build/`、`*.spec` 已在 `.gitignore` 中忽略，不会推到 GitHub。
 
+一键发版（复用本机 Git 凭据，无需手填 token）：
+
+```bash
+.venv\Scripts\python.exe _upload_release.py   # 创建 Release 并上传 dist\WaterReminder.exe
+```
+
 ## 数据存放位置
 
 配置与饮水记录保存在（不在项目目录，重装/移动项目都不丢）：
