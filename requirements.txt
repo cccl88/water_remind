@@ -1,0 +1,6 @@
+# 运行依赖
+PySide6-Essentials>=6.9
+
+# 打包 exe 时才需要（可选）
+pyinstaller>=6.0
+pillow>=10.0

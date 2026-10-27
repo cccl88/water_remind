@@ -1,0 +1,27 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# 打包产物（体积大，不要推到 GitHub）
+dist/
+build/
+*.spec
+
+# 临时文件
+_install*.log
+_build.log
+_selftest.log
+_ps.txt
+_icon_src.png
+data/
+
+# 编辑器/系统
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+
+# 助手工作记忆（不推送到公开仓库）
+.workbuddy/
