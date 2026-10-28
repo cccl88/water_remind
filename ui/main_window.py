@@ -16,6 +16,8 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSizePolicy,
     QAbstractSpinBox,
+    QComboBox,
+    QLineEdit,
     QGraphicsDropShadowEffect,
     QApplication,
 )
@@ -221,6 +223,64 @@ class MainWindow(QMainWindow):
         l3.addWidget(self.chart)
         cl.addWidget(c3)
 
+        # ---- 桌宠 ----
+        from pet.personality import PERSONALITIES
+
+        cpet = _card(self.theme)
+        lp = QVBoxLayout(cpet)
+        lp.setContentsMargins(14, 12, 14, 12)
+        lp.setSpacing(8)
+        lp.addWidget(QLabel("桌宠", objectName="section"))
+
+        row = QWidget()
+        rl = QHBoxLayout(row)
+        rl.setContentsMargins(0, 0, 0, 0)
+        rl.addWidget(QLabel("启用桌宠", objectName="sub"))
+        rl.addStretch(1)
+        self.sw_pet = Switch(theme=self.theme, checked=self.cfg.pet_enabled)
+        self.sw_pet.toggled.connect(self._on_pet_toggle)
+        rl.addWidget(self.sw_pet)
+        lp.addWidget(row)
+
+        prow = QWidget()
+        pl = QHBoxLayout(prow)
+        pl.setContentsMargins(0, 0, 0, 0)
+        pl.addWidget(QLabel("性格", objectName="sub"))
+        pl.addStretch(1)
+        self.cb_personality = QComboBox()
+        for key, meta in PERSONALITIES.items():
+            self.cb_personality.addItem(meta["name"], userData=key)
+        self.cb_personality.setCurrentIndex(list(PERSONALITIES).index(self.cfg.personality))
+        self.cb_personality.setFixedWidth(110)
+        self.cb_personality.currentIndexChanged.connect(self._on_personality)
+        pl.addWidget(self.cb_personality)
+        lp.addWidget(prow)
+
+        nrow = QWidget()
+        nl = QHBoxLayout(nrow)
+        nl.setContentsMargins(0, 0, 0, 0)
+        nl.addWidget(QLabel("昵称", objectName="sub"))
+        nl.addStretch(1)
+        self.ed_pet_name = QLineEdit(self.cfg.pet_name)
+        self.ed_pet_name.setFixedWidth(110)
+        self.ed_pet_name.setMaxLength(8)
+        self.ed_pet_name.setPlaceholderText("凛")
+        self.ed_pet_name.editingFinished.connect(self._on_pet_name)
+        nl.addWidget(self.ed_pet_name)
+        lp.addWidget(nrow)
+
+        crow = QWidget()
+        cl2 = QHBoxLayout(crow)
+        cl2.setContentsMargins(0, 0, 0, 0)
+        cl2.addWidget(QLabel("同时弹出卡片提醒", objectName="sub"))
+        cl2.addStretch(1)
+        self.sw_card = Switch(theme=self.theme, checked=self.cfg.show_card)
+        self.sw_card.toggled.connect(self._on_show_card)
+        cl2.addWidget(self.sw_card)
+        lp.addWidget(crow)
+
+        cl.addWidget(cpet)
+
         # ---- 其他 ----
         c4 = _card(self.theme)
         l4 = QVBoxLayout(c4)
@@ -336,6 +396,19 @@ class MainWindow(QMainWindow):
         self.cfg.auto_start = v
         self.ctrl.set_auto_start(v)
 
+    def _on_pet_toggle(self, v):
+        self.ctrl.toggle_pet(v)
+
+    def _on_personality(self, idx):
+        self.ctrl.set_personality(self.cb_personality.itemData(idx))
+
+    def _on_pet_name(self):
+        self.ctrl.set_pet_name(self.ed_pet_name.text())
+
+    def _on_show_card(self, v):
+        self.cfg.show_card = v
+        self.ctrl.save_config()
+
     def _on_dark(self, v):
         self.cfg.theme = "dark" if v else "light"
         self.ctrl.save_config()
@@ -350,6 +423,8 @@ class MainWindow(QMainWindow):
         self.sw_enable.theme = theme
         self.sw_autostart.theme = theme
         self.sw_dark.theme = theme
+        self.sw_pet.theme = theme
+        self.sw_card.theme = theme
         self.icon_label.setPixmap(water_drop_pixmap(24, get(theme)["primary"], dark=theme == "dark"))
         self.update()
 

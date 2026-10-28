@@ -20,6 +20,8 @@ from ui.main_window import MainWindow  # noqa: E402
 from ui.popup import ReminderPopup  # noqa: E402
 from ui.widgets import water_drop_pixmap  # noqa: E402
 from ui.theme import get  # noqa: E402
+from pet.pet_window import PetWindow  # noqa: E402
+from pet.personality import Personality  # noqa: E402
 
 SINGLE_KEY = "WaterReminder_SingleInstance_v1"
 
@@ -42,6 +44,9 @@ class Controller(QObject):
         self.window = MainWindow(self)
         self.window.themeChanged.connect(self.apply_theme)
 
+        self.persona = Personality(self.config.personality)
+        self.pet = PetWindow(self) if self.config.pet_enabled else None
+
         self._build_tray()
 
         self.timer = QTimer(self)
@@ -53,6 +58,11 @@ class Controller(QObject):
         self.config.auto_start = is_auto_start()
 
         self.refresh_ui()
+
+        # 桌宠登场打招呼
+        if self.pet is not None:
+            self.pet.show()
+            QTimer.singleShot(1400, lambda: self.pet and self.pet.react("greet", self.persona.say("greet")))
 
     # ---------------- 托盘 ----------------
     def _build_tray(self):
@@ -67,11 +77,14 @@ class Controller(QObject):
         self.ac_pause.triggered.connect(self.toggle_pause)
         self.ac_drink = QAction("我喝了一杯", menu)
         self.ac_drink.triggered.connect(self.drink)
+        self.ac_pet = QAction("隐藏桌宠" if self.config.pet_enabled else "显示桌宠", menu)
+        self.ac_pet.triggered.connect(lambda: self.toggle_pet())
         ac_quit = QAction("退出", menu)
         ac_quit.triggered.connect(self.quit)
         menu.addAction(self.ac_show)
         menu.addAction(self.ac_pause)
         menu.addAction(self.ac_drink)
+        menu.addAction(self.ac_pet)
         menu.addSeparator()
         menu.addAction(ac_quit)
         self.tray.setContextMenu(menu)
@@ -144,10 +157,23 @@ class Controller(QObject):
         left = f"{h} 小时 {m} 分" if h else f"{m} 分 {s} 秒"
         return f"下次提醒 {hhmm} · 还有 {left}"
 
-    # ---------------- 提醒弹窗（静默，无声音） ----------------
-    def show_reminder(self):
+    # ---------------- 提醒（桌宠气泡 / 卡片，全程静默无声音） ----------------
+    def _reminding(self) -> bool:
         if self.popup is not None:
+            return True
+        return self.pet is not None and self.pet.bubble is not None and self.pet.bubble.isVisible()
+
+    def show_reminder(self):
+        if self._reminding():
             return
+        cfg = self.config
+        use_card = (not cfg.pet_enabled) or cfg.show_card
+        if cfg.pet_enabled and self.pet is not None:
+            self.pet.remind(self.persona.say("remind"))
+        if use_card:
+            self._show_card()
+
+    def _show_card(self):
         cfg = self.config
         elapsed = self._elapsed_text()
         total = self.store.today_total()
@@ -192,6 +218,8 @@ class Controller(QObject):
                 p.deleteLater()
             except Exception:
                 pass
+        if self.pet is not None:
+            self.pet.close_bubble()
 
     # ---------------- 行为 ----------------
     def drink(self):
@@ -200,6 +228,8 @@ class Controller(QObject):
         self.schedule_next()
         self.refresh_ui()
         self.notify_tray(f"已记录 {self.config.cup_ml} ml，真棒！")
+        if self.pet is not None:
+            self.pet.react("drink", self.persona.say("drink"))
 
     def undo(self):
         if self.store.undo():
@@ -209,17 +239,53 @@ class Controller(QObject):
         self._close_popup()
         self.schedule_next(self.config.snooze_min)
         self.refresh_ui()
+        if self.pet is not None:
+            self.pet.react("snooze", self.persona.say("snooze"))
 
     def skip(self):
         self._close_popup()
         self.schedule_next()
         self.refresh_ui()
+        if self.pet is not None:
+            self.pet.react("skip", self.persona.say("skip"))
 
     def toggle_pause(self):
         self.paused = not self.paused
         if not self.paused:
             self.schedule_next()
         self.refresh_ui()
+        if self.pet is not None:
+            self.pet.react("pause", self.persona.say("pause"))
+
+    def on_pet_clicked(self):
+        if self.pet is not None:
+            self.pet.react("click", self.persona.say("click"))
+
+    def toggle_pet(self, visible: bool | None = None):
+        v = visible if visible is not None else not self.config.pet_enabled
+        self.config.pet_enabled = v
+        self.save_config()
+        if v and self.pet is None:
+            self.pet = PetWindow(self)
+            self.pet.show()
+            self.pet.react("greet", self.persona.say("greet"))
+        elif v and self.pet is not None:
+            self.pet.show()
+        elif not v and self.pet is not None:
+            self.pet.hide_pet()
+        self.refresh_ui()
+
+    def set_personality(self, key: str):
+        self.config.personality = key
+        self.persona = Personality(key)
+        self.save_config()
+        self.refresh_ui()
+        if self.pet is not None:
+            self.pet.react("greet", self.persona.say("greet"))
+
+    def set_pet_name(self, name: str):
+        self.config.pet_name = (name or "凛").strip()
+        self.save_config()
 
     def notify_tray(self, msg: str):
         self.tray.showMessage("喝水提醒", msg, QSystemTrayIcon.NoIcon, 2500)
@@ -255,8 +321,9 @@ class Controller(QObject):
     def apply_theme(self, theme: str):
         self.window.apply_theme(theme)
         self._refresh_tray_icon()
-        if self.popup is not None:
-            pass
+        if self.pet is not None:
+            self.pet.close_bubble()
+            self.pet.update()
 
     # ---------------- 界面刷新 ----------------
     def refresh_ui(self):
@@ -268,10 +335,13 @@ class Controller(QObject):
             status += f" · 连续达标 {streak} 天"
         self.window.refresh(total, cups, self.countdown_text(), status, self.paused)
         self.ac_pause.setText("继续提醒" if self.paused else "暂停提醒")
+        self.ac_pet.setText("隐藏桌宠" if self.config.pet_enabled else "显示桌宠")
         self.tray.setToolTip(f"喝水提醒 · 今日 {total}/{self.config.goal_ml} ml")
 
     def quit(self):
         self._close_popup()
+        if self.pet is not None:
+            self.pet.hide()
         self.config.save()
         self.tray.hide()
         self.app.quit()
@@ -356,7 +426,8 @@ def _selftest(app: QApplication, demo: bool = False):
     ctrl.config.active_from, ctrl.config.active_to = "00:00", "23:59"
     ctrl.next_remind = datetime.now() - timedelta(seconds=1)
     ctrl.tick()
-    assert ctrl.popup is not None, "到点未触发提醒"
+    fired = ctrl.popup is not None or (ctrl.pet is not None and ctrl.pet.bubble is not None)
+    assert fired, "到点未触发提醒"
     ctrl.skip()
 
     ctrl.tray.hide()

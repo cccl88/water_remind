@@ -116,6 +116,34 @@ def qss(theme: str = "light") -> str:
         font-size: 12px;
         color: {c['text']};
     }}
+    QComboBox {{
+        background: {c['card']};
+        border: 1px solid {c['border']};
+        border-radius: 8px;
+        padding: 5px 10px;
+        font-size: 12px;
+        color: {c['text']};
+    }}
+    QComboBox::drop-down {{ border: none; width: 22px; }}
+    QComboBox::down-arrow {{ image: none; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid {c['sub']}; margin-right: 6px; }}
+    QComboBox QAbstractItemView {{
+        background: {c['card']};
+        border: 1px solid {c['border']};
+        border-radius: 8px;
+        color: {c['text']};
+        selection-background-color: {c['primary_soft']};
+        selection-color: {c['primary']};
+        outline: none;
+    }}
+    QLineEdit {{
+        background: {c['card']};
+        border: 1px solid {c['border']};
+        border-radius: 8px;
+        padding: 5px 10px;
+        font-size: 12px;
+        color: {c['text']};
+    }}
+    QLineEdit:focus {{ border: 1px solid {c['primary']}; }}
     QScrollArea {{ border: none; background: transparent; }}
     QScrollBar:vertical {{ background: transparent; width: 8px; margin: 0; }}
     QScrollBar::handle:vertical {{ background: {c['border']}; border-radius: 4px; min-height: 30px; }}

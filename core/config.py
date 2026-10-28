@@ -43,6 +43,13 @@ class Config:
     auto_start: bool = False
     # 主题：light / dark
     theme: str = "light"
+    # 桌宠
+    pet_enabled: bool = True
+    personality: str = "tsundere"  # tsundere / gentle / coquettish
+    pet_name: str = "凛"
+    pet_pos: list = field(default_factory=list)
+    # 提醒时是否同时弹卡片（默认只用桌宠气泡）
+    show_card: bool = False
     # 每次提醒顺延但未饮水时，是否自动累计记录（False 表示只在手动确认后记录）
     window_geometry: list = field(default_factory=list)
 
